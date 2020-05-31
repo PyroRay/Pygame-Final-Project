@@ -1,8 +1,10 @@
-#Ray Peng
-#Platforming game
-#Mr Blake
+# Ray Peng
+# Platforming game
+# Mr Blake
 
-#possible sprites: opengameart.org
+# possible sprites: opengameart.org
+
+# 'W' to jump, 'A' to move left, 'D' to move right
 
 import pygame, sys, random, math
 from pygame.locals import *
@@ -22,56 +24,71 @@ screendim = pygame.display.get_surface().get_size()
 runGame = True
 jumptime = 0
 fallspeed = 5
+_DEBUG = True
+highestplaty = screendim[1]
 
-class player:
-    def __init__(self, speed, color, height, width, xset, yset, falling = False):
-        # self.image = pygame.image.load('squirrel.png')
-        self.radius = 15 #basically the size
-        self.direction = ""
-        self.speed = speed
-        self.color = color
-        self.size = (width, height)
-        self.x = xset
-        self.y = yset
-        self.falling = falling
-        self.jumptime = 20
-
-    def draw(self):
-        pygame.draw.rect(windowSurfaceObj, (self.color), (self.x - self.size[0]//2, self.y - self.size[1]//2, self.size[0], self.size[1]))
-        pygame.draw.circle(windowSurfaceObj, clrRed, (self.x, self.y), 5)
-    
-    def move(self, dirx = 0, diry = 0):
-        self.x += dirx
-        self.y += diry
-
-class platform:
+class solids:
     def __init__(self, color, height, width, xset, yset):
         self.size = (width, height)
         self.color = color
         self.x = xset
         self.y = yset
 
+    def leftx(self): # x of left side
+        return self.x - self.size[0]//2
+
+    def rightx(self): # x of right side
+        return self.x + self.size[0]//2
+
+    def topy(self): # y of top
+        return self.y - self.size[1]//2
+
+    def boty(self): # y of bottom
+        return self.y + self.size[1]//2
+
     def draw(self):
-        pygame.draw.rect(windowSurfaceObj, (self.color), (self.x - self.size[0]//2, self.y - self.size[1]//2, self.size[0], self.size[1]))
-        pygame.draw.circle(windowSurfaceObj, clrBlack, (self.x, self.y), 5)
+        pygame.draw.rect(windowSurfaceObj, (self.color), (self.leftx(), self.topy(), self.size[0], self.size[1]))
+        if _DEBUG:
+            pygame.draw.circle(windowSurfaceObj, clrGreen, (self.x, self.y), 5)
 
+class player(solids):
+    def __init__(self, color, height, width, xset, yset, speed, falling=False):
+        # self.image = pygame.image.load('squirrel.png')
+        self.direction = ""
+        self.speed = speed
+        self.falling = falling
+        self.jumptime = 20
+        super().__init__(color, height, width, xset, yset)
+    
+    def move(self, dirx = 0, diry = 0):
+        self.x += dirx
+        self.y += diry
 
+class platform(solids):
+    def __init__(self, color, height, width, xset, yset):
+        super().__init__(color, height, width, xset, yset)
+
+# (color, height, width, xset, yset, speed, falling=False) # player constructor
+player1 = player(clrWhite, 100, 50, screendim[0]//2, screendim[1]//2, 10)
+platforms = [platform(clrRed, 40, 100, 500, 600), platform(clrRed, 40, screendim[0], screendim[0]//2, screendim[1])] # creates array of platforms
+
+# platform(clrRed, 40, screendim[0], screendim[0]//2, screendim[1]),
 
 def onGround(plr):
-    # print(plr.y)
-    if plr.y + plr.size[1]/2 >= screendim[1]-20:
-        return True
-    else:
-        return False
+    
+    for platform in platforms:
+        if platform.leftx() < plr.rightx() and platform.rightx() > plr.leftx():
+            if platform.topy() == plr.boty():
+                return True
+            else:
+                return False
 
 def jump(plr, jumptime):
     plr.move(0, -jumptime)
 
-player1 = player(10, clrWhite, 100, 50, screendim[0]//2, screendim[1]//2)
-platform1 = platform(clrRed, 40, screendim[0], screendim[0]//2, screendim[1])
 
 while runGame:
-    # windowSurfaceObj.fill(clrBlack)	
+    windowSurfaceObj.fill(clrBlack)	
 
     #region Events
     for event in pygame.event.get():
@@ -104,6 +121,7 @@ while runGame:
             elif event.key == pygame.K_d:
                 # print("\'d\' key was let go")
                 right_pressed = False
+    #endregion
 
     if left_pressed:
         player1.move(-player1.speed)
@@ -129,14 +147,23 @@ while runGame:
         player1.falling = True # player starts falling
         jumptime = -5 # prevents player from 'jumping' in the air
 
+
     if player1.falling:
-        if fallspeed > (screendim[1]-20) - (player1.y + player1.size[1]/2): # if the player's falling vector is larger than the distance to the ground
-            fallspeed = int((screendim[1] - 20) - (player1.y + player1.size[1]/2)) # changes the vector to the distance between the player and the ground, therefore falling directly onto the surface
+        for platform in platforms:
+            if platform.leftx() < player1.rightx() and platform.rightx() > player1.leftx():
+                if highestplaty > platform.topy() and player1.boty() < platform.topy():
+                    highestplaty = platform.topy()
+                if fallspeed > platform.topy() - player1.boty(): # if the player's falling vector is larger than the distance to the ground
+                    if highestplaty == platform.topy():
+                        fallspeed = int(platform.topy() - player1.boty()) # changes the vector to the distance between the player and the ground, therefore falling directly onto the surface
+            else:
+                highestplaty = screendim[1]
         player1.move(0, fallspeed)
         fallspeed += 1
 
-    platform1.draw()
-    
+    for x in range(0, len(platforms)):
+        platforms[x-1].draw()
+
     player1.move()
     player1.draw()
 
